@@ -1,6 +1,6 @@
 {
   "name": "@aetherien/noble-hashes",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Audited & minimal 0-dependency JS implementation of SHA, RIPEMD, BLAKE, HMAC, HKDF, PBKDF & Scrypt",
   "files": [
     "*.js",

@@ -28,6 +28,11 @@ import {
   type TRet
 } from './utils.ts';
 
+const CHECKPOINT_MAGIC = new Uint8Array([0x4e, 0x48, 0x53, 0x4b]); // "NHSK"
+const CHECKPOINT_VERSION = 1;
+const CHECKPOINT_SHAKE256 = 1;
+const CHECKPOINT_SIZE = 220;
+
 // No __PURE__ annotations in sha3 header:
 // EVERYTHING is in fact used on every export.
 // Various per round constants calculations
@@ -232,7 +237,7 @@ export class Keccak implements Hash<Keccak>, HashXOF<Keccak> {
     const canUseU32 = blockLen % 4 === 0 && data.byteOffset % 4 === 0;
     const blockLen32 = blockLen / 4;
     const data32 = canUseU32 && len >= blockLen ? u32(data) : undefined;
-    for (let pos = 0; pos < len; ) {
+    for (let pos = 0; pos < len;) {
       if (data32 !== undefined && this.pos === 0 && pos % 4 === 0 && len - pos >= blockLen) {
         for (let i = 0, o = pos / 4; i < blockLen32; i++) state32[i] ^= data32[o + i];
         pos += blockLen;
@@ -269,7 +274,7 @@ export class Keccak implements Hash<Keccak>, HashXOF<Keccak> {
     this.finish();
     const bufferOut = this.state;
     const { blockLen } = this;
-    for (let pos = 0, len = out.length; pos < len; ) {
+    for (let pos = 0, len = out.length; pos < len;) {
       if (this.posOut >= blockLen) this.keccak();
       const take = Math.min(blockLen - this.posOut, len - pos);
       out.set(bufferOut.subarray(this.posOut, this.posOut + take), pos);
@@ -326,6 +331,131 @@ export class Keccak implements Hash<Keccak>, HashXOF<Keccak> {
     to.canXOF = this.canXOF;
     to.destroyed = this.destroyed;
     return to;
+  }
+
+  /**
+   * Serializes an absorbing Keccak state into a portable 220-byte checkpoint.
+   *
+   * Checkpoints may only be created before finalization/squeezing starts.
+   * The format is deliberately versioned and identifies the algorithm.
+   */
+  saveState(): Uint8Array {
+    aexists(this);
+
+    if (this.finished)
+      throw new Error('Cannot checkpoint a finalized/squeezing hash');
+
+    // This API is intended for SHAKE256 checkpoints.
+    if (!this.enableXOF || this.suffix !== 0x1f || this.blockLen !== 136)
+      throw new Error('State checkpointing is only supported for SHAKE256');
+
+    const out = new Uint8Array(CHECKPOINT_SIZE);
+    const view = new DataView(out.buffer);
+
+    // Header
+    out.set(CHECKPOINT_MAGIC, 0);
+    out[4] = CHECKPOINT_VERSION;
+    out[5] = CHECKPOINT_SHAKE256;
+
+    // flags:
+    // bit 0 = finished
+    // bit 1 = XOF enabled
+    out[6] = this.finished ? 1 : 0;
+    out[7] = this.blockLen;
+
+    view.setUint32(8, this.outputLen, true);
+    view.setUint16(12, this.pos, true);
+    view.setUint16(14, this.posOut, true);
+    out[16] = this.rounds;
+
+    // bytes 17..19 are reserved for future versions
+
+    // The Keccak state is exactly 200 bytes.
+    out.set(this.state, 20);
+
+    return out;
+  }
+
+  /**
+   * Restores a SHAKE256 state from a 220-byte checkpoint.
+   *
+   * The checkpoint must represent an absorbing SHAKE256 state.
+   */
+  loadState(checkpoint: Uint8Array): this {
+    aexists(this);
+
+    abytes(checkpoint);
+
+    if (checkpoint.length !== CHECKPOINT_SIZE)
+      throw new Error(
+        `Invalid checkpoint length: expected ${CHECKPOINT_SIZE}, got ${checkpoint.length}`
+      );
+
+    // Magic
+    for (let i = 0; i < CHECKPOINT_MAGIC.length; i++) {
+      if (checkpoint[i] !== CHECKPOINT_MAGIC[i])
+        throw new Error('Invalid checkpoint magic');
+    }
+
+    // Version
+    if (checkpoint[4] !== CHECKPOINT_VERSION)
+      throw new Error(
+        `Unsupported checkpoint version: ${checkpoint[4]}`
+      );
+
+    // Algorithm
+    if (checkpoint[5] !== CHECKPOINT_SHAKE256)
+      throw new Error('Checkpoint is not a SHAKE256 state');
+
+    // Flags
+    const flags = checkpoint[6];
+
+    if ((flags & ~1) !== 0)
+      throw new Error('Invalid checkpoint flags');
+
+    // We deliberately don't support restoring a squeezing state.
+    if ((flags & 1) !== 0)
+      throw new Error('Checkpoint is already finalized');
+
+    const blockLen = checkpoint[7];
+
+    if (blockLen !== 136)
+      throw new Error('Checkpoint has invalid SHAKE256 block length');
+
+    const view = new DataView(
+      checkpoint.buffer,
+      checkpoint.byteOffset,
+      checkpoint.byteLength
+    );
+
+    const outputLen = view.getUint32(8, true);
+    const pos = view.getUint16(12, true);
+    const posOut = view.getUint16(14, true);
+    const rounds = checkpoint[16];
+
+    if (rounds !== 24)
+      throw new Error('Checkpoint has invalid Keccak round count');
+
+    if (pos >= blockLen)
+      throw new Error('Checkpoint has invalid absorb position');
+
+    if (posOut !== 0)
+      throw new Error('Checkpoint has invalid output position');
+
+    // Make sure the destination instance is actually SHAKE256.
+    if (!this.enableXOF || this.suffix !== 0x1f || this.blockLen !== 136)
+      throw new Error('State can only be restored into SHAKE256');
+
+    this.outputLen = outputLen;
+    this.pos = pos;
+    this.posOut = 0;
+    this.finished = false;
+    this.rounds = rounds;
+
+    // Copy rather than aliasing caller memory.
+    this.state.set(checkpoint.subarray(20, 220));
+
+    return this;
   }
 }
 

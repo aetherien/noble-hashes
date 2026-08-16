@@ -85,5 +85,8 @@
   "types": "index.d.ts",
   "sideEffects": false,
   "author": "Paul Miller (https://paulmillr.com)",
-  "license": "MIT"
+  "license": "MIT",
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
 }

@@ -33,6 +33,7 @@ async function run() {
     import('./noble-hashes-only.test.ts'),
     import('./u64.test.ts'),
     import('./utils.test.ts'),
+    import('./shake-state.test.ts'),
   ]);
   init(variant, platform);
   acvpTests(false, variant, platform);

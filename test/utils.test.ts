@@ -16,7 +16,7 @@ import {
   swap8IfBE,
 } from '../src/utils.ts';
 import { gen, integer, optional } from './generator.ts';
-import { TYPE_TEST, pattern } from './utils.ts';
+import { TYPE_TEST, pattern, schedulerAbort } from './utils.ts';
 
 function hexa() {
   const items = '0123456789abcdef';
@@ -195,8 +195,20 @@ describe('utils etc', () => {
 
 describe('assert', () => {
   it('checkOpts', () => {
-    eql(u.checkOpts({ a: 1 }, { b: 2 }), { a: 1, b: 2 });
+    const inputDefaults = { a: 1 };
+    const merged = u.checkOpts(inputDefaults, { b: 2 });
+    eql({ ...merged }, { a: 1, b: 2 });
+    eql(Object.getPrototypeOf(merged), null);
+    eql(inputDefaults, { a: 1 });
     u.checkOpts({}, Object.create(null));
+    const defaults = {};
+    const jsonProto = JSON.parse('{"__proto__":{"c":1}}');
+    throws(() => u.checkOpts(defaults, jsonProto), /opts\.__proto__/);
+    eql(defaults, {});
+    eql(Object.getPrototypeOf(defaults), Object.prototype);
+    const nullProto: any = Object.create(null);
+    nullProto.__proto__ = { key: new Uint8Array(32) };
+    throws(() => u.checkOpts({}, nullProto), /opts\.__proto__/);
     for (const value of TYPE_TEST.opts) throws(() => u.checkOpts({}, value));
   });
   it('anumber', () => {
@@ -258,6 +270,29 @@ describe('assert', () => {
     await rejects(() => u.asyncLoop(Number.NaN, 0, () => {}));
     await rejects(() => u.asyncLoop(1, Number.NaN, () => {}));
     await rejects(() => u.asyncLoop(1, 0, 0 as never));
+  });
+  it.serial('scheduler abort runs nextTick and asyncLoop cleanup', async () => {
+    const reason = new Error('scheduler task aborted');
+    const actual = [];
+    await schedulerAbort(reason, async () => {
+      for (const [name, run] of [
+        ['nextTick', (cleanup: () => void) => u.nextTick(cleanup)],
+        ['asyncLoop', (cleanup: () => void) => u.asyncLoop(1, 0, () => {}, cleanup)],
+      ] as const) {
+        let cleanups = 0;
+        let error: unknown;
+        try {
+          await run(() => cleanups++);
+        } catch (cause) {
+          error = cause;
+        }
+        actual.push({ name, cleanups, error });
+      }
+    });
+    eql(actual, [
+      { name: 'nextTick', cleanups: 1, error: reason },
+      { name: 'asyncLoop', cleanups: 1, error: reason },
+    ]);
   });
 });
 

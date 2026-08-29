@@ -1,5 +1,5 @@
 {
-  "name": "@noble/hashes",
+  "name": "@aetherien/noble-hashes",
   "version": "2.4.0",
   "description": "Audited & minimal 0-dependency JS implementation of SHA, RIPEMD, BLAKE, HMAC, HKDF, PBKDF & Scrypt",
   "files": [
@@ -10,7 +10,7 @@
   "devDependencies": {
     "@paulmillr/jsbt": "0.7.1",
     "bismar": "0.1.8",
-    "@types/node": "26.2.0",
+    "@types/node": "26.4.0",
     "fast-check": "4.2.0",
     "prettier": "3.9.6",
     "typescript": "6.0.3"
@@ -79,7 +79,7 @@
   "funding": "https://paulmillr.com/funding/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paulmillr/noble-hashes.git"
+    "url": "git+https://github.com/aetherien/noble-hashes.git"
   },
   "type": "module",
   "main": "index.js",
@@ -87,5 +87,11 @@
   "types": "index.d.ts",
   "sideEffects": false,
   "author": "Paul Miller (https://paulmillr.com)",
-  "license": "MIT"
+  "license": "MIT",
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
 }

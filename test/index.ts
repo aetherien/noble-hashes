@@ -28,6 +28,7 @@ async function run() {
     import('./generator.ts'),
     import('./clone.test.ts'),
     import('./info.test.ts'),
+    import('./shake-state.test.ts'),
   ]);
   // These modules register suites through top-level side effects. Their order must be stable when
   // jsbt replays this entrypoint in workers, so don't load them concurrently with Promise.all().

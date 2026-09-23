@@ -9,9 +9,10 @@
   ],
   "devDependencies": {
     "@paulmillr/jsbt": "0.7.2",
+    "@types/node": "26.6.2",
     "bismar": "0.1.9",
-    "@types/node": "26.2.0",
-    "prettier": "3.9.8",
+    "npm-check-updates": "^23.1.0",
+    "prettier": "3.9.9",
     "typescript": "7.0.2"
   },
   "scripts": {
@@ -29,7 +30,8 @@
     "test:acvp": "node test/slow-acvp.test.ts",
     "test:kdf": "node test/slow-kdf.test.ts",
     "test:ultra": "node test/slow-ultra.test.ts",
-    "test:ultra:scrypt": "node test/slow-extreme-scrypt.test.ts"
+    "test:ultra:scrypt": "node test/slow-extreme-scrypt.test.ts",
+    "update": "npx npm-check-updates -u && npm install && npm update"
   },
   "exports": {
     ".": "./index.js",

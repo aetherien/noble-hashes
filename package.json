@@ -10,7 +10,7 @@
   "devDependencies": {
     "@paulmillr/jsbt": "0.7.2",
     "bismar": "0.1.9",
-    "@types/node": "26.2.0",
+    "@types/node": "26.6.2",
     "prettier": "3.9.8",
     "typescript": "7.0.2"
   },

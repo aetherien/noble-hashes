@@ -9,7 +9,7 @@
   ],
   "devDependencies": {
     "@paulmillr/jsbt": "0.7.2",
-    "@types/node": "26.6.6",
+    "@types/node": "26.6.7",
     "bismar": "0.1.9",
     "npm-check-updates": "23.1.1",
     "prettier": "3.9.10",
